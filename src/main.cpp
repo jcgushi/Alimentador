@@ -142,22 +142,22 @@ String processor(const String& var) {
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
-
+  delay(200);
   initLittleFS();
-
+  Serial.println("LittleFS inicializado!");
   // Set GPIO 2 as an OUTPUT
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   
   // Load values saved in LittleFS
   ssid = readFile(LittleFS, ssidPath);
+  Serial.print("ssid: ");Serial.println(ssid);
   pass = readFile(LittleFS, passPath);
+  Serial.print("pass: ");Serial.println(pass);
   ip = readFile(LittleFS, ipPath);
-  gateway = readFile (LittleFS, gatewayPath);
-  Serial.println(ssid);
-  Serial.println(pass);
-  Serial.println(ip);
-  Serial.println(gateway);
+  Serial.print("ip: ");Serial.println(ip);
+  gateway = readFile(LittleFS, gatewayPath);
+  Serial.print("gateway: ");Serial.println(gateway);
 
   if(initWiFi()) {
     // Route for root / web page
@@ -181,10 +181,9 @@ void setup() {
   }
   else {
     // Connect to Wi-Fi network with SSID and password
-    Serial.println("Setting AP (Access Point)");
+    Serial.println("Setting Access Point!");
     // NULL sets an open Access Point
     WiFi.softAP("ESP-WIFI-MANAGER", NULL);
-
     IPAddress IP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(IP); 
