@@ -191,8 +191,7 @@ void setup() {
 
     // Web Server Root URL
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-     // request->send(LittleFS, "/wifimanager.html", "text/html");
-     request->send(LittleFS, "/index.html", "text/html");
+     request->send(LittleFS, "/wifimanager.html", "text/html");
     });
     
     server.serveStatic("/", LittleFS, "/");
