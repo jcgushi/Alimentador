@@ -1,14 +1,28 @@
 /*********
   Rui Santos & Sara Santos - Random Nerd Tutorials
   Complete instructions at https://RandomNerdTutorials.com/esp32-wi-fi-manager-asyncwebserver/
+  Upload Files to ESP32 with LittleFS: https://randomnerdtutorials.com/esp32-vs-code-platformio-littlefs/
   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+Carregando imagem do sistema de arquivos
+Depois de criar e salvar o arquivo ou arquivos que deseja carregar na pasta data,
+siga as próximas etapas:
+Clique no ícone PIO na barra lateral esquerda.
+As tarefas do projeto devem ser abertas.
+Selecione esp32dev (pode ser diferente dependendo da placa que você está usando).
+Dentro você encotrará General e Platform.
+Expanda o menu Platform.
+Selecione Build Filesystem image, que cria a relação dos arquivos a serem carragados.
+Por fim, clique em Upload Filesystem Image que irá carregar os arquivos na memória do ESP32.
+Importante: para fazer upload da imagem do sistema de arquivos com sucesso, você deve 
+fechar todas as portas seriais (Serial Monitor).
 *********/
-//#include <Arduino.h>
+// #include <Arduino.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include "LittleFS.h"
+#include "FS.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -125,6 +139,51 @@ bool initWiFi() {
   return true;
 }
 
+// Você só precisa formatar o LittleFS na primeira vez que executar um
+// teste ou use o plugin LITTLEFS para criar uma partição
+//  https://github.com/lorol/arduino-esp32littlefs-plugin
+
+#define FORMAT_LITTLEFS_IF_FAILED true
+
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
+  Serial.printf("Listando diretorio: %s\r\n", dirname);
+
+  File root = fs.open(dirname);
+  if (!root)
+  {
+    Serial.println("- falha ao abrir o diretorio");
+    return;
+  }
+  if (!root.isDirectory())
+  {
+    Serial.println(" - não é um diretorio");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file)
+  {
+    if (file.isDirectory())
+    {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+      if (levels)
+      {
+        listDir(fs, file.path(), levels - 1);
+      }
+    }
+    else
+    {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("\tSIZE: ");
+      Serial.println(file.size());
+    }
+    file = root.openNextFile();
+  }
+}
+
 // Replaces placeholder with LED state value
 String processor(const String& var) {
   if(var == "STATE") {
@@ -142,13 +201,14 @@ String processor(const String& var) {
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
-  delay(200);
+  delay(1000);
   initLittleFS();
   Serial.println("LittleFS inicializado!");
   // Set GPIO 2 as an OUTPUT
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
-  
+  Serial.println("Listando diretório:");
+  listDir(LittleFS, "/", 1); // list all directories
   // Load values saved in LittleFS
   ssid = readFile(LittleFS, ssidPath);
   Serial.print("ssid: ");Serial.println(ssid);
