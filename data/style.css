@@ -54,7 +54,6 @@ input[type=submit]:hover {
 background-color: #1282A2;
 }
 input[type=text], input[type=number], select {
-width: 50%;
 padding: 12px 20px;
 margin: 18px;
 display: inline-block;
@@ -69,6 +68,21 @@ font-size: 1.2rem;
 font-size: 1.2rem;
 color: #1282A2;  
 }
+.hora{
+font-size: 2.2rem;
+color: #1282A2;  
+}
+.gravar{
+height: 65px;
+font-size: 1.8rem;
+color: #1282A2;
+background-color: #1282A2;
+}
+.dose{
+font-size: 2.2rem;
+color: #022d39;
+width: 150px;
+}
 .state {
 font-size: 1.2rem;
 color: #1282A2;
@@ -76,17 +90,19 @@ color: #1282A2;
 button {
 border: none;
 color: #FEFCFB;
-padding: 15px 32px;
+padding: 0px 0px;
 text-align: center;
-font-size: 16px;
-width: 100px;
+font-size: 30px;
+width: 60px;
+height: 60px;
 border-radius: 4px;
 transition-duration: 0.4s;
 }
-.button-on {
+.botao {
 background-color: #034078;
+
 }
-.button-on:hover {
+.botao:hover {
 background-color: #1282A2;
 }
 .button-off {

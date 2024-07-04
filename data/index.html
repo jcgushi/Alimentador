@@ -5,22 +5,23 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" type="text/css" href="style.css">
+<script type="text/javascript" src="script.js"></script>
 </head>
 <body>
 <header class="topnav">
-<h1>ESP WEB SERVER</h1>
+<h1>Alimentador de Pets</h1>
 </header>
 <section class="content">
 <div class="card-grid">
 <div class="card">
-<p class="card-title"><i class="fas fa-lightbulb"></i> GPIO 4</p>
-<p>
-<a href="on"><button class="button-on">ON</button></a>
-<a href="off"><button class="button-off">OFF</button></a>
-</p>
-<p class="state">State: %STATE%</p>
-</div>
+<input class="hora"type="time"title="hora de alimentar"id="hora"value="00:00"/>
+<input class="dose"type="number"title="Quantidade de ração"id="termino"value="0"/>
+<button type="button" title="Sentido horário" class="botao" id="horario"onclick="girar()">&#x21BB;</button>
+<button type="button" title="Sentido anti-horário" class="botao" id="anti-horario"onclick="girar()">&#x21BA;</button>
 </div>
 </section>
+<script>
+
+</script>
 </body>
 </html>
