@@ -5,23 +5,29 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" type="text/css" href="style.css">
-<script type="text/javascript" src="script.js"></script>
+<script type="text/javascript" src="script.js"></script>  
 </head>
-<body>
+<body  onload="getMessage()">
 <header class="topnav">
 <h1>Alimentador de Pets</h1>
 </header>
 <section class="content">
 <div class="card-grid">
 <div class="card">
-<input class="hora"type="time"title="hora de alimentar"id="hora"value="00:00"/>
-<input class="dose"type="number"title="Quantidade de ração"id="termino"value="0"/>
-<button type="button" title="Sentido horário" class="botao" id="horario"onclick="girar()">&#x21BB;</button>
-<button type="button" title="Sentido anti-horário" class="botao" id="anti-horario"onclick="girar()">&#x21BA;</button>
+<input list="velocidade" class="velocidade"type="number"title="Tempo de"id="hora"value="00"/>
+<input class="dose"type="number"title="Quantidade de ração (dose de 1g)"id="termino"value="0"/>
+<datalist id="velocidade">
+  <option value=3>
+  <option value=5>
+  <option value=10>
+  <option value=20>
+  <option value=40>
+  <option value=80>
+</datalist>
+<button type="button" title="Girar no sentido horário" class="botao" id="horario"onclick="girar(true)">&#x21BB;</button>
+<button type="button" title="Girar no sentido anti-horário" class="botao" id="anti-horario"onclick="girar(false)">&#x21BA;</button>
+<p id="mensagem"></p>
 </div>
 </section>
-<script>
-
-</script>
 </body>
 </html>
