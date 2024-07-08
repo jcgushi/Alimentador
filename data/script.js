@@ -20,7 +20,7 @@ function girar(horario) {
     }
   };
   var msg = "&horario=" + horario;
-  console.log("parametros?" + msg);
-  xhttp.open("GET", "parametros?" + msg, true);
+  console.log("girar?" + msg);
+  xhttp.open("GET", "girar?" + msg, true);
   xhttp.send();
 }

@@ -23,9 +23,12 @@ fechar todas as portas seriais (Serial Monitor).
 #include <AsyncTCP.h>
 #include "LittleFS.h"
 #include "FS.h"
+#include <PCI_UG_T1.h>
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
+
+PCI_UG_T1 motor(2, 0); // indica motor de passo no modo 2 em CN1 e motor(es) DC em CN2
 
 // Search for parameter in HTTP POST request
 const char* PARAM_INPUT_1 = "ssid";
@@ -203,6 +206,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   initLittleFS();
+  motor.begin();
   Serial.println("LittleFS inicializado!");
   // Set GPIO 2 as an OUTPUT
   pinMode(ledPin, OUTPUT);

@@ -1,14 +1,18 @@
 html {
 font-family: Arial, Helvetica, sans-serif; 
 display: inline-block; 
-text-align: center;
 }
 h1 {
 font-size: 1.8rem; 
 color: white;
+text-align: center;
 }
 p { 
 font-size: 1.4rem;
+}
+.dados{width: 300px;
+  position: relative;
+  left: 50px;
 }
 .topnav { 
 overflow: hidden; 
@@ -30,6 +34,8 @@ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 .card { 
 background-color: white; 
 box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+padding: 10px;
+text-align: center;
 }
 .card-title { 
 font-size: 1.2rem;
@@ -37,11 +43,13 @@ font-weight: bold;
 color: #034078
 }
 input[type=submit] {
+  position: relative;
+  top: 5px;
+  right: 50px;
 border: none;
 color: #FEFCFB;
 background-color: #034078;
 padding: 15px 15px;
-text-align: center;
 text-decoration: none;
 display: inline-block;
 font-size: 16px;
@@ -65,6 +73,7 @@ color: #0b708b;
 }
 label {
 font-size: 1.2rem; 
+text-align: left;
 }
 .value{
 font-size: 1.2rem;
