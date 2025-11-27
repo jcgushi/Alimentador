@@ -1,0 +1,243 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("timerForm");
+  const timersList = document.getElementById("timersList");
+  const timeInput = document.getElementById("time");
+  const stepsInput = document.getElementById("steps");
+  const timeForm = document.getElementById("timeForm");
+  const wifiForm = document.getElementById("wifiForm");
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  function renderTimers(timers) {
+    timersList.innerHTML = "";
+    timers.forEach((t, index) => {
+      const li = document.createElement("li");
+      const display = document.createElement("div");
+      display.className = "row";
+      display.innerHTML = `<strong>${pad2(t.hour)}:${pad2(t.minute)}</strong> — ${t.steps} passos`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Excluir";
+      delBtn.addEventListener("click", () => {
+        if (!confirm('Excluir este timer?')) return;
+        fetch(`/deleteTimer?index=${index}`)
+          .then(res => {
+            if (!res.ok) throw new Error('Falha ao excluir (status ' + res.status + ')');
+            return res.text();
+          })
+          .then(loadTimers)
+          .catch(err => alert('Erro ao excluir: ' + err.message));
+      });
+
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Editar";
+      editBtn.addEventListener("click", () => {
+        li.innerHTML = "";
+        const editor = document.createElement("div");
+        editor.className = "row";
+        editor.innerHTML = `
+          Horário: <input type="time" id="editTime${index}" value="${pad2(t.hour)}:${pad2(t.minute)}">
+          Passos: <input type="number" id="editSteps${index}" min="1" max="10000" value="${t.steps}">
+          <button id="save${index}">Salvar</button>
+          <button id="cancel${index}">Cancelar</button>
+          <button id="test${index}">Testar dose</button>
+        `;
+        console.log(editor);
+        li.appendChild(editor);
+
+        document.getElementById(`save${index}`).addEventListener("click", () => {
+          const timeVal = document.getElementById(`editTime${index}`).value;
+          if (!timeVal) return alert('Horário inválido');
+          const [h, m] = timeVal.split(":");
+          const sRaw = document.getElementById(`editSteps${index}`).value;
+          const s = parseInt(sRaw, 10);
+          if (!Number.isInteger(s) || s <= 0) return alert('Passos inválidos');
+          fetch(`/editTimer?index=${index}&hour=${h}&minute=${m}&steps=${s}`)
+            .then(res => {
+              if (!res.ok) throw new Error('Falha ao editar (status ' + res.status + ')');
+              return res.text();
+            })
+            .then(loadTimers)
+            .catch(err => alert('Erro ao editar: ' + err.message));
+        });
+        document.getElementById(`cancel${index}`).addEventListener("click", loadTimers);
+        document.getElementById(`test${index}`).addEventListener("click", () => {
+          const sRaw = document.getElementById(`editSteps${index}`).value;
+          const s = parseInt(sRaw, 10);
+          if (!Number.isInteger(s) || s <= 0) { alert('Steps inválido'); return; }
+          fetch(`/testTimer?steps=${s}`)
+            .then(res => {
+              if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
+              return res.text();
+            })
+            .then(() => alert('Teste acionado'))
+            .catch(e => alert('Erro ao testar: ' + e));
+        });
+      });
+
+      const testBtn = document.createElement("button");
+      testBtn.textContent = "Testar dose";
+      testBtn.addEventListener("click", () => {
+        fetch(`/testTimer?steps=${t.steps}`)
+          .then(res => {
+            if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
+            return res.text();
+          })
+          .then(() => alert('Teste acionado'))
+          .catch(e => alert('Erro ao testar: ' + e));
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      actions.appendChild(testBtn);
+
+      li.appendChild(display);
+      li.appendChild(actions);
+      timersList.appendChild(li);
+    });
+  }
+
+  function loadTimers() {
+  fetch("/timers.json")
+    .then(res => res.json())
+    .then(data => {
+      renderTimers(data);
+      if (data.length > 0) {
+        document.getElementById("timersMessage").textContent =
+          "Timers carregados do dispositivo.";
+      } else {
+        document.getElementById("timersMessage").textContent =
+          "Nenhum timer configurado.";
+      }
+    })
+    .catch(() => {
+      timersList.innerHTML = "<li>Falha ao carregar timers.</li>";
+      document.getElementById("timersMessage").textContent =
+        "Erro ao recuperar timers.";
+    });
+}
+
+  function loadTime() {
+    fetch("/time.json")
+      .then(res => res.json())
+      .then(data => {
+        const el = document.getElementById("currentTime");
+        if (data.formatted) {
+          el.textContent = data.formatted;
+        } else {
+          el.textContent = "indisponível";
+        }
+      });
+  }
+
+  function loadWifiStatus() {
+    fetch("/wifiStatus.json")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("localIp").textContent = data.localIp;
+        document.getElementById("apIp").textContent = data.apIp;
+        const statusEl = document.getElementById("wifiStatus");
+        const linkWrap = document.getElementById("localLinkWrap");
+        const link = document.getElementById("localLink");
+
+        if (data.localIp && data.localIp !== "—" && data.localIp !== "Falha ao conectar") {
+          statusEl.textContent = "Status: conectado em STA";
+          link.href = `http://${data.localIp}/`;
+          link.textContent = data.localIp;
+          linkWrap.style.display = "block";
+        } else {
+          statusEl.textContent = "Status: não conectado em STA";
+          linkWrap.style.display = "none";
+        }
+      });
+  }
+
+  const MAX_STEPS_UI = 2000000; // deve acompanhar limite do firmware
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const timeValue = timeInput.value; // "HH:MM"
+    if (!timeValue) return;
+    const [hour, minute] = timeValue.split(":");
+    const stepsRaw = stepsInput.value;
+    const steps = parseInt(stepsRaw, 10);
+    if (!Number.isInteger(steps) || steps <= 0) return alert('Passos inválidos');
+    if (steps > MAX_STEPS_UI) return alert('Passos muito grandes (limite ' + MAX_STEPS_UI + ')');
+
+    fetch(`/addTimer?hour=${hour}&minute=${minute}&steps=${steps}`)
+      .then(res => {
+        if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
+        return res.text();
+      })
+      .then(() => {
+        timeInput.value = "";
+        stepsInput.value = "";
+        loadTimers();
+      })
+      .catch(e => alert('Erro ao adicionar timer: ' + e));
+  });
+
+  timeForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const h = document.getElementById("manualHour").value;
+    const m = document.getElementById("manualMinute").value;
+    fetch(`/setTime?hour=${h}&minute=${m}`)
+      .then(res => res.text())
+      .then(msg => {
+        alert(msg);
+        loadTime(); // atualiza hora exibida imediatamente
+      });
+  });
+
+  wifiForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const ssid = document.getElementById("ssid").value;
+    const pass = document.getElementById("password").value;
+    fetch(`/setWifi?ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(pass)}`)
+      .then(res => res.text())
+      .then(msg => {
+        document.getElementById("wifiStatus").textContent = "Status: " + msg;
+        loadWifiStatus();
+      });
+  });
+
+  // Inicializações
+  loadTimers();
+  loadTime();
+  loadWifiStatus();
+
+  function loadReport() {
+  fetch("/report.txt")
+    .then(res => res.text())
+    .then(text => {
+      document.getElementById("reportArea").textContent = text;
+    });
+}
+
+document.getElementById("clearReport").addEventListener("click", () => {
+  fetch("/clearReport")
+    .then(res => res.text())
+    .then(msg => {
+      alert(msg);
+      loadReport();
+    });
+});
+
+  // Atualiza relatório periodicamente
+  setInterval(loadReport, 5000);
+  loadReport();
+
+  // Alternar seções pela barra de navegação (dentro do DOMContentLoaded)
+  document.querySelectorAll("nav ul li a").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const targetId = link.getAttribute("data-target");
+      document.querySelectorAll(".page-section").forEach(sec => {
+        sec.style.display = (sec.id === targetId) ? "block" : "none";
+      });
+    });
+  });
+
+});

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32-C3 Timers</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Barra de navegação -->
+  <nav>
+    <ul>
+      <li><a href="#" data-target="wifiSection">Wi‑Fi</a></li>
+      <li><a href="#" data-target="timersSection">Timers</a></li>
+      <li><a href="#" data-target="timeSection">Relógio interno</a></li>
+      <li><a href="#" data-target="reportSection">Relatório</a></li>
+    </ul>
+  </nav>
+
+  <!-- Seção definição dos timers -->
+  <section id="timersSection" class="page-section">
+    <h2>Configuração de Timers</h2>
+    <form id="timerForm" class="row">
+      Horário: <input type="time" id="time" required>
+      Passos (dose): <input type="number" id="steps" min="1" max="10000" required>
+      <button type="submit">Adicionar Horário</button>
+    </form>
+    <h3>Timers configurados</h3>
+    <ul id="timersList"></ul>
+  </section>
+<!-- Seção Wi-Fi -->
+  <section id="wifiSection" class="page-section none">
+    <h2>Configuração de Wi‑Fi</h2>
+    <form id="wifiForm" class="row">
+      SSID: <input type="text" id="ssid" required>
+      Senha: <input type="password" id="password" required>
+      <button type="submit">Conectar</button>
+    </form>
+    <div id="wifiPanel">
+      <p>IP da rede local (STA): <span id="localIp">—</span></p>
+      <p>IP do AP: <span id="apIp">—</span></p>
+      <p id="wifiStatus">Status: aguardando...</p>
+      <p id="localLinkWrap" class="none" >
+        Abrir na rede local: <a id="localLink" href="#" target="_blank">link</a>
+      </p>
+    </div>
+  </section>
+<!-- Seção ajuste de hora -->
+  <section id="timeSection" class="page-section none">
+    <h2>Ajuste manual de hora</h2>
+    <h3>Hora atual: <span id="currentTime">--:--</span></h3>
+    <form id="timeForm" class="row">
+      Hora: <input type="number" id="manualHour" min="0" max="23" required>
+      Minuto: <input type="number" id="manualMinute" min="0" max="59" required>
+      <button type="submit">Definir hora</button>
+    </form>
+  </section>
+<!-- Seção relatório de doses ministradas -->
+  <section id="reportSection" class="page-section none">
+    <h2>Relatório de doses ministradas</h2>
+    <pre id="reportArea">Carregando...</pre>
+    <button id="clearReport">Limpar relatório</button>
+  </section>
+
+  <script src="/script.js"></script>
+</body>
+</html>
