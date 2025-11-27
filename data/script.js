@@ -23,71 +23,112 @@ document.addEventListener("DOMContentLoaded", () => {
       delBtn.textContent = "Excluir";
       delBtn.addEventListener("click", () => {
         if (!confirm('Excluir este timer?')) return;
+        delBtn.disabled = true;
         fetch(`/deleteTimer?index=${index}`)
           .then(res => {
             if (!res.ok) throw new Error('Falha ao excluir (status ' + res.status + ')');
             return res.text();
           })
           .then(loadTimers)
-          .catch(err => alert('Erro ao excluir: ' + err.message));
+          .catch(err => { delBtn.disabled = false; alert('Erro ao excluir: ' + err.message); });
       });
 
       const editBtn = document.createElement("button");
       editBtn.textContent = "Editar";
       editBtn.addEventListener("click", () => {
-        li.innerHTML = "";
+        // Remover nós atuais do li e montar editor usando createElement para evitar innerHTML/id conflicts
+        while (li.firstChild) li.removeChild(li.firstChild);
+
         const editor = document.createElement("div");
         editor.className = "row";
-        editor.innerHTML = `
-          Horário: <input type="time" id="editTime${index}" value="${pad2(t.hour)}:${pad2(t.minute)}">
-          Passos: <input type="number" id="editSteps${index}" min="1" max="10000" value="${t.steps}">
-          <button id="save${index}">Salvar</button>
-          <button id="cancel${index}">Cancelar</button>
-          <button id="test${index}">Testar dose</button>
-        `;
-        console.log(editor);
+
+        // label + time input
+        const timeLabel = document.createElement('label');
+        timeLabel.textContent = 'Horário: ';
+        const timeInp = document.createElement('input');
+        timeInp.type = 'time';
+        timeInp.value = `${pad2(t.hour)}:${pad2(t.minute)}`;
+
+        // label + steps input
+        const stepsLabel = document.createElement('label');
+        stepsLabel.textContent = ' Passos: ';
+        const stepsInp = document.createElement('input');
+        stepsInp.type = 'number';
+        stepsInp.min = 1;
+        // use MAX_STEPS_UI if available otherwise fallback
+        stepsInp.max = (typeof MAX_STEPS_UI !== 'undefined') ? MAX_STEPS_UI : 100000;
+        stepsInp.value = t.steps;
+
+        // buttons
+        const saveBtn = document.createElement('button'); saveBtn.textContent = 'Salvar';
+        const cancelBtn = document.createElement('button'); cancelBtn.textContent = 'Cancelar';
+        const testEditBtn = document.createElement('button'); testEditBtn.textContent = 'Testar dose';
+
+        // append to editor and li
+        timeLabel.appendChild(timeInp);
+        stepsLabel.appendChild(stepsInp);
+        editor.appendChild(timeLabel);
+        editor.appendChild(stepsLabel);
+        editor.appendChild(saveBtn);
+        editor.appendChild(cancelBtn);
+        editor.appendChild(testEditBtn);
         li.appendChild(editor);
 
-        document.getElementById(`save${index}`).addEventListener("click", () => {
-          const timeVal = document.getElementById(`editTime${index}`).value;
+        // helper to enable/disable all editor buttons
+        function setEditorBusy(busy) {
+          saveBtn.disabled = busy;
+          cancelBtn.disabled = busy;
+          testEditBtn.disabled = busy;
+        }
+
+        saveBtn.addEventListener('click', () => {
+          const timeVal = timeInp.value;
           if (!timeVal) return alert('Horário inválido');
-          const [h, m] = timeVal.split(":");
-          const sRaw = document.getElementById(`editSteps${index}`).value;
-          const s = parseInt(sRaw, 10);
+          const [h, m] = timeVal.split(':');
+          const s = parseInt(stepsInp.value, 10);
           if (!Number.isInteger(s) || s <= 0) return alert('Passos inválidos');
+
+          setEditorBusy(true);
           fetch(`/editTimer?index=${index}&hour=${h}&minute=${m}&steps=${s}`)
             .then(res => {
-              if (!res.ok) throw new Error('Falha ao editar (status ' + res.status + ')');
+              if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
               return res.text();
             })
-            .then(loadTimers)
-            .catch(err => alert('Erro ao editar: ' + err.message));
+            .then(() => loadTimers())
+            .catch(err => { alert('Erro ao editar: ' + err); setEditorBusy(false); });
         });
-        document.getElementById(`cancel${index}`).addEventListener("click", loadTimers);
-        document.getElementById(`test${index}`).addEventListener("click", () => {
-          const sRaw = document.getElementById(`editSteps${index}`).value;
-          const s = parseInt(sRaw, 10);
-          if (!Number.isInteger(s) || s <= 0) { alert('Steps inválido'); return; }
+
+        cancelBtn.addEventListener('click', () => {
+          loadTimers();
+        });
+
+        testEditBtn.addEventListener('click', () => {
+          const s = parseInt(stepsInp.value, 10);
+          if (!Number.isInteger(s) || s <= 0) return alert('Steps inválido');
+
+          setEditorBusy(true);
           fetch(`/testTimer?steps=${s}`)
             .then(res => {
               if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
               return res.text();
             })
-            .then(() => alert('Teste acionado'))
-            .catch(e => alert('Erro ao testar: ' + e));
+            .then(() => { alert('Teste acionado'); setEditorBusy(false); })
+            .catch(e => { alert('Erro ao testar: ' + e); setEditorBusy(false); });
         });
       });
 
       const testBtn = document.createElement("button");
       testBtn.textContent = "Testar dose";
       testBtn.addEventListener("click", () => {
+        testBtn.disabled = true;
         fetch(`/testTimer?steps=${t.steps}`)
           .then(res => {
             if (!res.ok) return res.text().then(t => Promise.reject(t || ('Status ' + res.status)));
             return res.text();
           })
           .then(() => alert('Teste acionado'))
-          .catch(e => alert('Erro ao testar: ' + e));
+          .catch(e => alert('Erro ao testar: ' + e))
+          .finally(() => testBtn.disabled = false);
       });
 
       actions.appendChild(editBtn);
