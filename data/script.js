@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function loadTimers() {
     const statusEl = document.getElementById("timersMessage");
-    statusEl.textContent = "Carregando timers...";
+    if (statusEl) statusEl.textContent = "Carregando timers...";
     // timeout via AbortController
     const controller = new AbortController();
     const timeoutMs = 5000;
@@ -129,13 +129,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         renderTimers(clean);
-        statusEl.textContent = (clean.length > 0) ? "Timers carregados do dispositivo." : "Nenhum timer configurado.";
+        if (statusEl) statusEl.textContent = (clean.length > 0) ? "Timers carregados do dispositivo." : "Nenhum timer configurado.";
       })
       .catch(err => {
         if (err && err.name === 'AbortError') {
-          statusEl.textContent = "Timeout ao carregar timers.";
+          if (statusEl) statusEl.textContent = "Timeout ao carregar timers.";
         } else {
-          statusEl.textContent = "Erro ao recuperar timers: " + (err && err.message ? err.message : '');
+          if (statusEl) statusEl.textContent = "Erro ao recuperar timers: " + (err && err.message ? err.message : '');
         }
         timersList.innerHTML = "<li>Falha ao carregar timers.</li>";
         console.error('loadTimers error:', err);
