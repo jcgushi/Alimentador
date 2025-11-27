@@ -101,24 +101,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadTimers() {
-  fetch("/timers.json")
-    .then(res => res.json())
-    .then(data => {
-      renderTimers(data);
-      if (data.length > 0) {
-        document.getElementById("timersMessage").textContent =
-          "Timers carregados do dispositivo.";
-      } else {
-        document.getElementById("timersMessage").textContent =
-          "Nenhum timer configurado.";
-      }
-    })
-    .catch(() => {
-      timersList.innerHTML = "<li>Falha ao carregar timers.</li>";
-      document.getElementById("timersMessage").textContent =
-        "Erro ao recuperar timers.";
-    });
-}
+    const statusEl = document.getElementById("timersMessage");
+    statusEl.textContent = "Carregando timers...";
+    // timeout via AbortController
+    const controller = new AbortController();
+    const timeoutMs = 5000;
+    const timerId = setTimeout(() => controller.abort(), timeoutMs);
+
+    fetch("/timers.json", { signal: controller.signal })
+      .then(res => {
+        clearTimeout(timerId);
+        if (!res.ok) throw new Error('Servidor retornou ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (!Array.isArray(data)) throw new Error('Formato inesperado da resposta');
+
+        // validação mínima dos itens e filtragem
+        const clean = data.filter(it => {
+          return it && typeof it === 'object' &&
+            Number.isInteger(it.hour) && it.hour >= 0 && it.hour <= 23 &&
+            Number.isInteger(it.minute) && it.minute >= 0 && it.minute <= 59 &&
+            Number.isInteger(it.steps) && it.steps > 0;
+        });
+        if (clean.length !== data.length) {
+          console.warn('Alguns timers inválidos foram descartados', data);
+        }
+
+        renderTimers(clean);
+        statusEl.textContent = (clean.length > 0) ? "Timers carregados do dispositivo." : "Nenhum timer configurado.";
+      })
+      .catch(err => {
+        if (err && err.name === 'AbortError') {
+          statusEl.textContent = "Timeout ao carregar timers.";
+        } else {
+          statusEl.textContent = "Erro ao recuperar timers: " + (err && err.message ? err.message : '');
+        }
+        timersList.innerHTML = "<li>Falha ao carregar timers.</li>";
+        console.error('loadTimers error:', err);
+      });
+  }
 
   function loadTime() {
     fetch("/time.json")
