@@ -6,6 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeForm = document.getElementById("timeForm");
   const wifiForm = document.getElementById("wifiForm");
 
+  // estado do motor retornado pelo firmware
+  let motorBusy = false;
+  let motorStepsLeft = 0;
+  let motorPending = 0;
+
   function pad2(n) { return String(n).padStart(2, "0"); }
 
   function renderTimers(timers) {
@@ -63,6 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveBtn = document.createElement('button'); saveBtn.textContent = 'Salvar';
         const cancelBtn = document.createElement('button'); cancelBtn.textContent = 'Cancelar';
         const testEditBtn = document.createElement('button'); testEditBtn.textContent = 'Testar dose';
+        // se motor está ocupado, não permite testar
+        if (motorBusy) testEditBtn.disabled = true;
 
         // append to editor and li
         timeLabel.appendChild(timeInp);
@@ -119,6 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const testBtn = document.createElement("button");
       testBtn.textContent = "Testar dose";
+      // desabilita se motor já estiver ocupado
+      testBtn.disabled = motorBusy;
       testBtn.addEventListener("click", () => {
         testBtn.disabled = true;
         fetch(`/testTimer?steps=${t.steps}`)
@@ -218,6 +227,30 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
+    // Carrega status do motor (ex.: ocupado / passos restantes)
+    function loadMotorStatus() {
+      const el = document.getElementById('motorStatus');
+      fetch('/motorStatus.json')
+        .then(res => {
+          if (!res.ok) throw new Error('Status ' + res.status);
+          return res.json();
+        })
+        .then(data => {
+          motorBusy = !!data.busy;
+          motorStepsLeft = data.stepsToGo || 0;
+          motorPending = data.pending || 0;
+          if (el) el.textContent = motorBusy ? `Motor ocupado — passos restantes: ${motorStepsLeft}` : 'Motor: ocioso';
+          // atualizar botões de teste na lista sem re-renderizar
+          document.querySelectorAll('#timersList button').forEach(b => {
+            if (b.textContent && b.textContent.trim() === 'Testar dose') b.disabled = motorBusy;
+          });
+        })
+        .catch(err => {
+          if (el) el.textContent = 'Motor: erro';
+          console.error('loadMotorStatus error', err);
+        });
+    }
+
   const MAX_STEPS_UI = 2000000; // deve acompanhar limite do firmware
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -270,6 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTimers();
   loadTime();
   loadWifiStatus();
+  // atualiza status do motor periodicamente
+  loadMotorStatus();
+  setInterval(loadMotorStatus, 2000);
 
   function loadReport() {
   fetch("/report.txt")

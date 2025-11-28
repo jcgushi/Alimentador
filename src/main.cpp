@@ -498,6 +498,7 @@ void setup() {
 
   // Rotas de dados
   server.on("/timers.json", handleTimersJson);
+  server.on("/motorStatus.json", handleMotorStatus);
   server.on("/addTimer", handleAddTimer);
   server.on("/deleteTimer", handleDeleteTimer);
   server.on("/editTimer", handleEditTimer);
@@ -523,4 +524,16 @@ void loop() {
   server.handleClient();
   checkTimersAndTrigger();
   delay(1);      // cooperatividade
+}
+
+// Status do motor (JSON)
+void handleMotorStatus() {
+  uint32_t stepsLeft = motores.stepstogo(0);
+  bool busy = (stepsLeft > 0) || motorDoseInProgress;
+  String json = "{";
+  json += "\"busy\":" + String(busy ? "true" : "false") + ",";
+  json += "\"stepsToGo\":" + String(stepsLeft) + ",";
+  json += "\"pending\":" + String(motorDosePendingSteps);
+  json += "}";
+  server.send(200, "application/json", json);
 }
