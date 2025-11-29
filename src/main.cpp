@@ -197,6 +197,18 @@ void loadTimersFromTxt() {
   file.close();
   Serial.printf("Timers carregados: %d\n", timerCount);
 }
+
+// Status do motor (JSON)
+void handleMotorStatus() {
+  uint32_t stepsLeft = motores.stepstogo(0);
+  bool busy = (stepsLeft > 0) || motorDoseInProgress;
+  String json = "{";
+  json += "\"busy\":" + String(busy ? "true" : "false") + ",";
+  json += "\"stepsToGo\":" + String(stepsLeft) + ",";
+  json += "\"pending\":" + String(motorDosePendingSteps);
+  json += "}";
+  server.send(200, "application/json", json);
+}
 // Salva timers em /timers.txt
 void saveTimersToTxt() {
   File file = LittleFS.open("/timers.txt", "w");
@@ -341,6 +353,7 @@ void handleEditTimer() {
 }
 // Teste manual do motor
 void handleTestTimer() {
+  Serial.println("Recebido pedido de teste manual do motor");
   if (!server.hasArg("steps")) {
     server.send(400, "text/plain", "Steps ausente.");
     return;
@@ -513,7 +526,34 @@ void setup() {
   server.begin();
 
   setupTimeNTP();   // tenta NTP
-  loadTimersFromTxt();
+  // Tentativa curta de obter hora via NTP para decidir se devemos disparar timers no boot
+  struct tm bootTimeInfo;
+  bool bootTimeOk = false;
+  unsigned long ntpStart = millis();
+  const unsigned long ntpTimeoutMs = 5000; // aguarda até 5s por NTP
+  while (millis() - ntpStart < ntpTimeoutMs) {
+    if (getLocalTime(&bootTimeInfo)) { bootTimeOk = true; break; }
+    delay(250);
+  }
+  if (bootTimeOk) {
+    // Se a hora estiver válida (via NTP/localtime), disparamos timers que batem neste minuto
+    Serial.printf("Hora válida no boot: %02d:%02d (yday=%d) — verificando timers a disparar...\n", bootTimeInfo.tm_hour, bootTimeInfo.tm_min, bootTimeInfo.tm_yday);
+    for (int i = 0; i < timerCount; i++) {
+      if (timers[i].hour == bootTimeInfo.tm_hour && timers[i].minute == bootTimeInfo.tm_min) {
+        Serial.printf("Boot trigger: %02d:%02d -> %d passos\n", timers[i].hour, timers[i].minute, timers[i].steps);
+        if (!runMotorDoseSafe(timers[i].steps)) {
+          Serial.println("Falha ao agendar dose no boot (motor ocupado ou steps inválido)");
+        }
+      }
+    }
+    // Marca o minuto atual como processado para evitar re-disparo dentro do mesmo minuto
+    lastProcessedMinute = bootTimeInfo.tm_min;
+    lastProcessedHour = bootTimeInfo.tm_hour;
+    lastProcessedYday = bootTimeInfo.tm_yday;
+  } else {
+    Serial.println("Hora NTP não disponível no boot — não dispararei timers automaticamente.");
+  }
+//  loadTimersFromTxt();
   Serial.println("Setup concluído.");
 // ===== Loop principal =====
   server.handleClient();
@@ -524,16 +564,4 @@ void loop() {
   server.handleClient();
   checkTimersAndTrigger();
   delay(1);      // cooperatividade
-}
-
-// Status do motor (JSON)
-void handleMotorStatus() {
-  uint32_t stepsLeft = motores.stepstogo(0);
-  bool busy = (stepsLeft > 0) || motorDoseInProgress;
-  String json = "{";
-  json += "\"busy\":" + String(busy ? "true" : "false") + ",";
-  json += "\"stepsToGo\":" + String(stepsLeft) + ",";
-  json += "\"pending\":" + String(motorDosePendingSteps);
-  json += "}";
-  server.send(200, "application/json", json);
 }
