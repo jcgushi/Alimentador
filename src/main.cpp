@@ -7,8 +7,6 @@
 // ===== Configurações do AP =====
 const char* AP_SSID = "ESP32C3_AP";
 const char* AP_PASSWORD = "12345678"; // mínimo 8 caracteres
-
-
 motbepled motores(1, 2); // 1 motor no modo 2
 int velocidade = 8; // velocidade do motor
 boolean cw = true; // sentido horário
@@ -66,35 +64,35 @@ bool setManualTime(int hour, int minute) {
 void setupMotor() {
   
   motores.pinsStep0(0, 1, 2, 3, -1, -1);
+  motores.pinBeep(10);              //pino usado pelo Beep
+  motores.pinLed(8, 0);             //pino usado pelo Led
   motores.begin();
   // stepper.setMaxSpeed(1200);     // ajuste conforme fonte/motor
   // stepper.setAcceleration(300);  // aceleração
 }
-// Registra uma dose no arquivo report.txt
-// event -> "INICIO" / "CONCLUIDO" (ou NULL para sem tag)
-void logDoseEvent(int steps, const char *event) {
+// Removido: registro em arquivo report.txt (simplificação)
+// Mantemos logs apenas via Serial para reduzir I/O e complexidade
+void logDoseStart(int steps) {
   struct tm info;
   if (getLocalTime(&info)) {
-    File file = LittleFS.open("/report.txt", "a");
-    if (file) {
-      char buf[128];
-      if (event && strlen(event) > 0) {
-        snprintf(buf, sizeof(buf), "%02d/%02d/%04d %02d:%02d - %s: %d passos\n",
-                 info.tm_mday, info.tm_mon + 1, info.tm_year + 1900,
-                 info.tm_hour, info.tm_min, event, steps);
-      } else {
-        snprintf(buf, sizeof(buf), "%02d/%02d/%04d %02d:%02d - %d passos\n",
-                 info.tm_mday, info.tm_mon + 1, info.tm_year + 1900,
-                 info.tm_hour, info.tm_min, steps);
-      }
-      file.print(buf);
-      file.close();
-    }
+    Serial.printf("LOG: %02d/%02d/%04d %02d:%02d - INICIO: %d passos\n",
+                  info.tm_mday, info.tm_mon + 1, info.tm_year + 1900,
+                  info.tm_hour, info.tm_min, steps);
+  } else {
+    Serial.printf("LOG: INICIO: %d passos\n", steps);
   }
 }
 
-void logDoseStart(int steps) { logDoseEvent(steps, "INICIO"); }
-void logDoseComplete(int steps) { logDoseEvent(steps, "CONCLUIDO"); }
+void logDoseComplete(int steps) {
+  struct tm info;
+  if (getLocalTime(&info)) {
+    Serial.printf("LOG: %02d/%02d/%04d %02d:%02d - CONCLUIDO: %d passos\n",
+                  info.tm_mday, info.tm_mon + 1, info.tm_year + 1900,
+                  info.tm_hour, info.tm_min, steps);
+  } else {
+    Serial.printf("LOG: CONCLUIDO: %d passos\n", steps);
+  }
+}
 // Estado da dose em andamento (monitorado por checkTimersAndTrigger/loop)
 volatile bool motorDoseInProgress = false;
 volatile uint32_t motorDosePendingSteps = 0;
@@ -263,10 +261,13 @@ void checkTimersAndTrigger() {
 void serveFile(const char* path, const char* contentType) {
   File file = LittleFS.open(path, "r");
   if (!file) {
+    Serial.printf("[serveFile] Falha ao abrir arquivo: %s\n", path);
     server.send(404, "text/plain", "Arquivo não encontrado");
     return;
   }
-  server.streamFile(file, contentType);
+  Serial.printf("[serveFile] Servindo arquivo: %s (%s)\n", path, contentType);
+  size_t sent = server.streamFile(file, contentType);
+  Serial.printf("[serveFile] streamFile retornou: %u bytes\n", (unsigned)sent);
   file.close();
 }
 // ===== Endpoints estáticos =====
@@ -278,6 +279,7 @@ void handleScript() { serveFile("/script.js", "application/javascript"); }
 void handleTimersJson() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  Serial.println("[handleTimersJson] Enviando lista de timers em JSON");
   server.send(200, "application/json", "");
 
   server.sendContent("[");
@@ -288,9 +290,11 @@ void handleTimersJson() {
     item += "\"steps\":" + String(timers[i].steps);
     item += "}";
     if (i < timerCount - 1) item += ",";
+    Serial.printf("[handleTimersJson] Enviando item: %s\n", item.c_str());
     server.sendContent(item);
   }
   server.sendContent("]");
+  Serial.println("[handleTimersJson] JSON enviado");
 }
 // Adicionar novo timer
 void handleAddTimer() {
@@ -440,21 +444,18 @@ void handleSetWifi() {
     server.send(400, "text/plain", "Parametros ausentes");
   }
 }
-// relatório de doses ministradas
-void handleReport() {
-  File file = LittleFS.open("/report.txt", "r");
-  if (!file) {
-    server.send(200, "text/plain", "Relatório vazio");
-    return;
+// Relatório removido — logs aparecem somente no Serial
+// Página não encontrada
+void handleNotFound() {
+  String message = "Not Found\n\n";
+  message += "URI: " + server.uri() + "\n";
+  message += "Method: " + String(server.method()) + "\n";
+  message += "Args: " + String(server.args()) + "\n";
+  for (int i = 0; i < server.args(); ++i) {
+    message += server.argName(i) + ": " + server.arg(i) + "\n";
   }
-  server.streamFile(file, "text/plain");
-  file.close();
-}
-// limpar relatório
-void handleClearReport() {
-  File file = LittleFS.open("/report.txt", "w"); // sobrescreve vazio
-  if (file) file.close();
-  server.send(200, "text/plain", "Relatório limpo");
+  Serial.printf("[handleNotFound] URI não encontrada: %s, método: %d, args: %d\n", server.uri().c_str(), server.method(), server.args());
+  server.send(404, "text/plain", message);
 }
 // ===== Setup e Loop =====
 void setup() {
@@ -518,9 +519,8 @@ void setup() {
   server.on("/setTime", handleSetTime);
   server.on("/wifiStatus.json", handleWifiStatus);
   server.on("/setWifi", handleSetWifi);
-  server.on("/report.txt", handleReport);
-  server.on("/clearReport", handleClearReport);
-
+  // report endpoints removed (simplificação)
+  server.onNotFound(handleNotFound);// Página não encontrada
   server.begin();
 
   setupTimeNTP();   // tenta NTP
@@ -552,6 +552,9 @@ void setup() {
     Serial.println("Hora NTP não disponível no boot — não dispararei timers automaticamente.");
   }
 //  loadTimersFromTxt();
+
+  motores.beep(3, 200, 2000, 100);//emite 2 beep de 200ms cada, 2000Hz, intervalo entre eles de 100ms 
+  motores.led(3, 200, 50);        //pisca o LED 3 vezes com 200ms aceso e 50ms apagado
   Serial.println("Setup concluído.");
 // ===== Loop principal =====
   server.handleClient();

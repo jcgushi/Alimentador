@@ -60,14 +60,7 @@ li {
   border-radius: 6px;
 }
 
-/* Relatório */
-#reportArea {
-  background: #f9f9f9;
-  padding: 10px;
-  border: 1px solid #ddd;
-  max-height: 300px;
-  overflow-y: auto;
-}
+/* Relatório removido (seção excluída do HTML) */
 
 /* Media queries para telas pequenas */
 @media (max-width: 600px) {

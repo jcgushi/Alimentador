@@ -307,26 +307,8 @@ document.addEventListener("DOMContentLoaded", () => {
   loadMotorStatus();
   setInterval(loadMotorStatus, 2000);
 
-  function loadReport() {
-  fetch("/report.txt")
-    .then(res => res.text())
-    .then(text => {
-      document.getElementById("reportArea").textContent = text;
-    });
-}
 
-document.getElementById("clearReport").addEventListener("click", () => {
-  fetch("/clearReport")
-    .then(res => res.text())
-    .then(msg => {
-      alert(msg);
-      loadReport();
-    });
-});
-
-  // Atualiza relatório periodicamente
-  setInterval(loadReport, 5000);
-  loadReport();
+  // Relatório removido — não há mais polling de /report.txt
 
   // Alternar seções pela barra de navegação (dentro do DOMContentLoaded)
   document.querySelectorAll("nav ul li a").forEach(link => {
