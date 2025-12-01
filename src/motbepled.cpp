@@ -88,6 +88,7 @@ void motbepled::begin() {
     ledcAttachPin(pinoBeep, 4);                      //define pinoLed channel 4 (beep)
     ledcSetup(4, 1000, 8);                           //PWM sempre a 1KHz
     ledcWrite(4, 0);                                 //grava 0 nele (silencia)
+    pwmSetup[4] = true;
   }
 
   if (pinoLed>=0){pinMode(pinoLed, OUTPUT);digitalWrite(pinoLed, !nivLed);}    //Led
@@ -124,24 +125,25 @@ void  motbepled::runDC(uint8_t n, uint32_t time, uint8_t veldc, boolean cwdc)
   xcwdc[n]=cwdc;
 
   if (pinosDC[0][2]>=0){
-    ledcAttachPin(pinosDC[0][2], 0);                   //se motor DC em CN1, define channel 0 pino n (motor DC 0)
-    ledcSetup(0, 1000, 8);                             //PWM sempre a 1KHz
+    if (!pwmSetup[0]) { ledcAttachPin(pinosDC[0][2], 0); ledcSetup(0, 1000, 8); pwmSetup[0]=true; }
   } 
   if (pinosDC[1][2]>=0){
-    ledcAttachPin(pinosDC[1][2], 1);                   //define channel 1 pino n (motor DC 1)
-    ledcSetup(1, 1000, 8);                             //PWM sempre a 1KHz
+    if (!pwmSetup[1]) { ledcAttachPin(pinosDC[1][2], 1); ledcSetup(1, 1000, 8); pwmSetup[1]=true; }
   }  
 
   if (pinosDC[2][2]>=0){
-    ledcAttachPin(pinosDC[2][2], 2);                   //se motor DC em CN1, define channel 2 pino n (motor DC 2)
-    ledcSetup(2, 1000, 8);                             //PWM sempre a 1KHz
+    if (!pwmSetup[2]) { ledcAttachPin(pinosDC[2][2], 2); ledcSetup(2, 1000, 8); pwmSetup[2]=true; }
   }
   if (pinosDC[3][2]>=0){  
-    ledcAttachPin(pinosDC[3][2], 3);                   //define channel 3 pino n (motor DC 3)
-    ledcSetup(3, 1000, 8);                             //PWM sempre a 1KHz
+    if (!pwmSetup[3]) { ledcAttachPin(pinosDC[3][2], 3); ledcSetup(3, 1000, 8); pwmSetup[3]=true; }
   }  
 
-  ledcWrite(n, int(float(xveldc[n])/100.0*255.0));
+  if (pwmSetup[n]) {
+    ledcWrite(n, int(float(xveldc[n])/100.0*255.0));
+  } else {
+    // channel not configured for PWM; ignore write to avoid LEDC not initialized error
+    // Serial output is avoided in library code for speed, but could be enabled for debugging
+  }
   xtime[n]=time*10;
 }
 
@@ -198,7 +200,7 @@ void  motbepled::stopStep(uint8_t n)
 //----------------------------------------------------------------------
 void  motbepled::stopDC(uint8_t n)
 {
-  ledcWrite(n, 0);
+  if (pwmSetup[n]) ledcWrite(n, 0);
   xtime[n]=0;
 }
 
@@ -254,11 +256,15 @@ void IRAM_ATTR  motbepled::onTimer100us()
 
   //processa os DCs------------------------------------------------------------------------------------
   for (k=0; k<4; k++){
-    if (xtime[k]>0){
+      if (xtime[k]>0){
       if ( xcwdc[k]){digitalWrite(pinosDC[k][0], 0);digitalWrite(pinosDC[k][1], 1);}
       if (!xcwdc[k]){digitalWrite(pinosDC[k][1], 0);digitalWrite(pinosDC[k][0], 1);}
       xtime[k]--;
-      if (xtime[k]==0){digitalWrite(pinosDC[k][0], 0);digitalWrite(pinosDC[k][1], 0);ledcWrite(k, 0);}
+      if (xtime[k]==0){
+          digitalWrite(pinosDC[k][0], 0);
+          digitalWrite(pinosDC[k][1], 0);
+          if (pwmSetup[k]) ledcWrite(k, 0);
+      }
     }
   }
 
@@ -268,17 +274,19 @@ void IRAM_ATTR  motbepled::onTimer100us()
     if (bxpri){                           //if is the beginning of cycle to beep,
       bxinter=binter+1; bxdur=bdur;       //init the time variables
       bxpausa=false; bxpri=false;         //with default values or user values
-      ledcSetup(4, bfreq, 8);             //
+      // ensure channel 4 is configured for PWM before writing
+      ledcSetup(4, bfreq, 8);
+      pwmSetup[4] = true;
     }                                     // 
     if (!bxpausa && (bxdur>0)) {          //if it is beeping 
-      ledcWrite(4, 127);bxdur--;          //keep the beep beeping for bxdur ms
+      if (pwmSetup[4]) ledcWrite(4, 127); bxdur--;          //keep the beep beeping for bxdur ms
       if(bxdur==0){                       //at end,
-        ledcWrite(4, 0);                  //stop the beep and advise 
+        if (pwmSetup[4]) ledcWrite(4, 0);                  //stop the beep and advise 
         bxpausa=true;                     //that pause fase is to be initiated
       }
     }
     if (bxpausa && (bxinter>0)){          //if it is in pause
-      ledcWrite(4, 0);bxinter--;          //keep the beep stoped for bxinter ms
+      if (pwmSetup[4]) ledcWrite(4, 0);bxinter--;          //keep the beep stoped for bxinter ms
       if(bxinter==0){                     //at end, exit from pause, subtract 1 from quantity of desired 
         bxpausa=false;bnum--;bxpri=true;  //beeps and advise to reload the variables for a new cycle
       }
