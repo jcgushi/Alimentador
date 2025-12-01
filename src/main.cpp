@@ -10,8 +10,6 @@ const char* AP_PASSWORD = "12345678"; // mínimo 8 caracteres
 
 
 motbepled motores(1, 2); // 1 motor no modo 2
-
-
 int velocidade = 8; // velocidade do motor
 boolean cw = true; // sentido horário
 
